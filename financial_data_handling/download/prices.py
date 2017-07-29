@@ -199,3 +199,21 @@ class PriceDownloader():
                 errors[ticker] = "Unhandled: {}".format(E)
         return errors
 
+
+
+class YahooDataDownloader():
+    '''
+    Uses the Pandas data functionality to download data.
+    '''
+    def priceHistory(self, ticker, start = None, end = None):
+        if start is None:
+            start = datetime.date(2010, 1, 1)
+        if end is None:
+            end = datetime.date.today()
+        return pd_data.get_data_yahoo(ticker + ".AX", start, end)
+
+    def currentPrice(self, ticker):
+        ticker = ticker + ".AX"
+        quote = pd_data.get_quote_yahoo(ticker)
+        return quote["last"][ticker]
+
