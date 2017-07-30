@@ -13,52 +13,7 @@ import pandas as pd
 from datetime import date
 from pandas import DataFrame
 
-from data_types.market import Market
-from data_types.filter_data import StackedFilterValues, WideFilterValues
 
-
-def getMarket(type = "ASX", excluded_tickers = None):
-    market_sources = {
-        "ASX" : r'D:\Investing\Workspace\market_instruments.pkl', 
-        "NYSE" : r'D:\Investing\Workspace\nyse_instruments.pkl', 
-        "NYSE VALUE" : r'D:\Investing\Workspace\nyse_value_instruments.pkl'
-        }
-
-    source = market_sources[type.upper()]
-    instruments = pd.read_pickle(source)
-    if excluded_tickers is not None:
-        tickers = list(set(instruments.items) - set(excluded_tickers))
-        instruments = instruments.loc[tickers, :, :]
-    else:
-        tickers = list(instruments.items)
-    start = instruments.iloc[0].index.min().to_pydatetime().date()
-    end = instruments.iloc[0].index.max().to_pydatetime().date()
-    market = Market(tickers, start, end)
-    market.instruments = instruments
-    market.exchange = type.upper().split()[0]
-    return market
-
-def getValues(type = None, exchange = "ASX"):
-    data_source = {
-        "ASX" : r'D:\Investing\Workspace\Valuations20170129.xlsx',
-        "NYSE" : r'D:\Investing\Workspace\NYSEvaluations20170527.xlsx'
-        }
-    source = data_source[exchange]
-    vals = pd.read_excel(source, index_col = 0)
-    if type is not None:
-        vals = vals[["ticker", type]]
-    return StackedFilterValues(vals, type)
-
-def getValueRatios(type, strat):
-    valuation = getValues(type, strat.market.exchange).as_wide_values()
-    ratios = valuation.values / strat.get_trade_prices()
-    return WideFilterValues(ratios, name = "Value Ratio")
-
-def getValueMetrics(type = None):
-    vals = pd.read_excel(r'D:\Investing\Workspace\ValueMetrics20170329.xlsx', index_col = 0)
-    if type is not None:
-        vals = vals[["ticker", type]]
-    return StackedFilterValues(vals, type)
 
 
 class Handler(object):

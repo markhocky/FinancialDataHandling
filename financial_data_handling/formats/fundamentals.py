@@ -8,21 +8,7 @@ from pandas_datareader import data as pd_data
 from pandas_datareader import base as pd_base
 from bs4 import BeautifulSoup
 
-
-class StorageResource():
-
-    def selectFolder(self, store):
-        raise NotImplementedError
-
-    def filename(self):
-        raise NotImplementedError
-
-    def loadFrom(self, file_path):
-        raise NotImplementedError
-
-    def saveTo(self, file_path):
-        raise NotImplementedError
-
+from formats import StorageResource
 
 class Financials(StorageResource):
 
@@ -56,17 +42,17 @@ class Financials(StorageResource):
         if ticker != self.ticker or period != self.period:
             raise ValueError("Ticker and Period must match")
 
-    def selectFolder(self, store):
+    def select_folder(self, store):
         return store.financials(self)
 
     def filename(self):
         return self.ticker + self.period + ".pkl"
  
-    def saveTo(self, file_path):
+    def save_To(self, file_path):
         with open(file_path, "wb") as file:
             pickle.dump(self.to_dict(), file)
 
-    def loadFrom(self, file_path):
+    def load_from(self, file_path):
         with open(file_path, "rb") as file:
             dictionary = pickle.load(file)
         self.from_dict(dictionary)
@@ -107,7 +93,7 @@ class Financials(StorageResource):
     def investing(self):
         return self.statements["cashflow"]["investing"]
 
-    def lastYear(self):
+    def last_year(self):
         last_period = self.income.columns[0]
         if self.period == "annual":
             last_date = datetime.datetime.strptime(last_period, "%Y")
@@ -117,7 +103,7 @@ class Financials(StorageResource):
             raise AttributeError("Period must be annual or interim.")
         return last_date.year
 
-    def numColumns(self):
+    def num_columns(self):
         return len(self.income.columns)
 
 
@@ -129,89 +115,74 @@ class StatementWebpage(StorageResource):
         self.period = period
         self.html = None
 
-    def selectFolder(self, store):
+    def select_folder(self, store):
         if self.period is "annual":
-            return store.annualFinancials(self)
+            return store.annual_financials(self)
         else:
-            return store.interimFinancials(self)
+            return store.interim_financials(self)
 
     def filename(self):
         return self.ticker + self.type + ".html"
 
-    def loadFrom(self, file_path):
+    def load_from(self, file_path):
         with open(file_path, 'r') as file:
             self.html = file.read()
         return self
 
-    def saveTo(self, file_path):
+    def save_to(self, file_path):
         with open(file_path, 'w') as file:
             file.write(str(self.html))
 
 
-class PriceHistory(StorageResource):
-    
-    def __init__(self, ticker):
-        self.ticker = ticker
-        self.prices = None
-
-    def selectFolder(self, store):
-        return store.priceHistory(self)
-
-    def filename(self):
-        return self.ticker + "prices.pkl"
-
-    def loadFrom(self, file_path):
-        self.prices = pandas.read_pickle(file_path)
-        return self
-
-    def saveTo(self, file_path):
-        self.prices.to_pickle(file_path)
-
-
 class ValuationSummary(StorageResource):
 
-    def __init__(self, date):
+    def __init__(self, date = "*"):
         # Assumes date in YYYYMMDD format
+        # If no date was provided then Storage will attempt to find the latest.
         self.date = date
         self.summary = None
 
-    def selectFolder(self, store):
-        return store.valuationSummary(self)
+    def select_folder(self, store):
+        return store.valuation_summary(self)
 
     def filename(self):
         return "ValuationSummary" + self.date + ".xlsx"
 
-    def loadFrom(self, file_path):
+    def load_from(self, file_path):
         self.summary = pandas.read_excel(file_path, index_col = 0)
         return self
 
-    def saveTo(self, file_path):
+    def save_to(self, file_path):
         self.summary.to_excel(file_path)
-
 
 class Valuations(ValuationSummary):
 
     def filename(self):
         return "Valuations" + self.date + ".xlsx"
 
+class ValuationMetrics(ValuationSummary):
+
+    def filename(self):
+        return "ValuationMetrics" + self.date + ".xlsx"
+
 
 class AnalysisSummary(StorageResource):
 
     def __init__(self, reporter):
         self.ticker = reporter.ticker
-        self.summary = reporter.summaryTable()
+        self.summary = reporter.summary_table()
         self.reporter = reporter
 
-    def selectFolder(self, store):
-        return store.analysisSummary(self)
+    def select_folder(self, store):
+        return store.analysis_summary(self)
 
     def filename(self):
         return self.ticker + "analysis.xlsx"
 
-    def saveTo(self, file_path):
+    def save_to(self, file_path):
         writer = pandas.ExcelWriter(file_path)
         self.summary.to_excel(writer, "Summary")
-        self.reporter.financialsToExcel(writer)
+        self.reporter.financials_to_excel(writer)
         writer.save()
 
 
@@ -221,16 +192,16 @@ class CMChistoricals(StorageResource):
         self.ticker = ticker
         self.summary = None
 
-    def selectFolder(self, store):
+    def select_folder(self, store):
         return store.CMCsummary(self)
 
     def filename(self):
         return self.ticker + "historical.pkl"
 
-    def saveTo(self, file_path):
+    def save_to(self, file_path):
         self.summary.to_pickle(file_path)
 
-    def loadFrom(self, file_path):
+    def load_from(self, file_path):
         self.summary = pandas.read_pickle(file_path)
         return self
 
@@ -241,16 +212,16 @@ class CMCpershare(StorageResource):
         self.ticker = ticker
         self.summary = None
 
-    def selectFolder(self, store):
+    def select_folder(self, store):
         return store.CMCsummary(self)
 
     def filename(self):
         return self.ticker + "pershare.pkl"
 
-    def saveTo(self, file_path):
+    def save_to(self, file_path):
         return self.summary.to_pickle(file_path)
 
-    def loadFrom(self, file_path):
+    def load_from(self, file_path):
         self.summary = pandas.read_pickle(file_path)
         return self
 

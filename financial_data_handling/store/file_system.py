@@ -9,7 +9,8 @@ from pandas_datareader import data as pd_data
 from pandas_datareader import base as pd_base
 from bs4 import BeautifulSoup
 
-
+from formats.price_history import Instruments
+from formats.fundamentals import Valuations, ValuationMetrics
 
 class XLSio():
 
@@ -19,7 +20,7 @@ class XLSio():
     # NOTE: This is currently working on the assumption that the workbook only
     # contains one worksheet.
     # Takes inputs from ASX Listed Companies downloaded from ASX.com.au
-    def loadWorkbook(self, name):
+    def load_workbook(self, name):
         if name is "ASXListedCompanies.xlsx":
             header = 2
         else:
@@ -28,17 +29,17 @@ class XLSio():
         table.index = table.pop("ASX code")
         self.table = table
 
-    def getHeader(self):
+    def get_header(self):
         return self.table.columns.tolist()
 
-    def getTickers(self):
+    def get_tickers(self):
         return self.table.index.tolist()
 
-    def updateTable(self, new_data):
+    def update_table(self, new_data):
         new_table = pandas.DataFrame.from_dict(new_data, orient = "index")
         self.table = self.table.join(new_table)
 
-    def saveAs(self, filename):
+    def save_as(self, filename):
         self.table.to_excel(os.path.join(self.store.data, filename), sheet_name = "Stock table")
 
 
@@ -56,39 +57,42 @@ class Storage():
     def valuations(self):
         return os.path.join(self.root, "Valuations", self.exchange)
 
+    def workspace(self, resource):
+        return os.path.join(self.root, "Workspace")
+
     def load(self, resource):
-        folder = resource.selectFolder(self)
+        folder = resource.select_folder(self)
         filename = resource.filename()
-        return resource.loadFrom(os.path.join(folder, filename))
+        return resource.load_from(os.path.join(folder, filename))
 
     def save(self, resource):
-        folder = resource.selectFolder(self)
+        folder = resource.select_folder(self)
         self.check_directory(folder)
         file_path = os.path.join(folder, resource.filename())
-        resource.saveTo(file_path)
+        resource.save_to(file_path)
 
-    def stockFolder(self, resource):
+    def stock_folder(self, resource):
         return os.path.join(self.data, resource.ticker)
 
     def financials(self, resource):
-        return os.path.join(self.stockFolder(resource), "Financials")
+        return os.path.join(self.stock_folder(resource), "Financials")
 
     def CMCsummary(self, resource):
         return self.financials(resource)
 
-    def annualFinancials(self, resource):
-        return os.path.join(self.stockFolder(resource), "Financials", "Annual")
+    def annual_financials(self, resource):
+        return os.path.join(self.stock_folder(resource), "Financials", "Annual")
 
-    def interimFinancials(self, resource):
-        return os.path.join(self.stockFolder(resource), "Financials", "Interim")
+    def interim_financials(self, resource):
+        return os.path.join(self.stock_folder(resource), "Financials", "Interim")
 
-    def priceHistory(self, resource):
-        return self.stockFolder(resource)
+    def price_history(self, resource):
+        return self.stock_folder(resource)
 
-    def analysisSummary(self, resource):
-        return self.stockFolder(resource)
+    def analysis_summary(self, resource):
+        return self.stock_folder(resource)
 
-    def valuationSummary(self, resource):
+    def valuation_summary(self, resource):
         return self.valuations
 
     def check_directory(self, path):
@@ -105,9 +109,9 @@ class Storage():
 
         if tickers is None:
             xls = XLSio(self)
-            xls.loadWorkbook("StockSummary")
+            xls.load_workbook("StockSummary")
             xls.table = xls.table[xls.table["P/E Ratio (TTM)"].notnull()]
-            tickers = xls.getTickers()
+            tickers = xls.get_tickers()
 
         for ticker in tickers:
             folder = folder_pattern.replace("<ticker>", ticker)
@@ -137,4 +141,54 @@ class Storage():
         dest_file = os.path.join(destination, filename)
         self.check_directory(dest_file)
         shutil.move(os.path.join(old_folder, filename), dest_file)
+
+    def get_instruments(self, name, excluded_tickers = None):
+        market_sources = {
+            "ASX" : 'market', 
+            "NYSE" : 'nyse', 
+            "NYSE VALUE" : 'nyse_value'
+            }
+        exchange = name.upper().split()[0]
+        original_exchange = self.exchange
+        self.exchange = exchange
+        source = market_sources[name.upper()]
+        instruments = Instruments(source)
+        instruments = self.load(instruments)
+        if excluded_tickers is not None:
+            instruments.exclude(excluded_tickers)
+        self.exchange = original_exchange
+        return instruments
+
+    def get_valuations(self, date = None):
+        if date is None:
+            # Find the most recent valuations
+            files = os.listdir(self.valuations)
+            filename = Valuations().filename()
+            date = self.find_latest_date(files, filename)
+        valuations = Valuations(date)
+        return self.load(valuations)
+
+    def get_valuemetrics(self, date = None):
+        if date is None:
+            # Find the most recent valuations
+            files = os.listdir(self.valuations)
+            filename = ValuationMetrics().filename()
+            date = self.find_latest_date(files, filename)
+        valuations = ValuationMetrics(date)
+        return self.load(valuations)
+
+    def find_latest_date(self, files, filename):
+        """
+        From a list of files (e.g. retrieved from a directory), and the
+        filename format of a file type find the latest dated file of that 
+        type. Relies on the date format being of form YYYYMMDD.
+        Used for data formats which include a date in the filename, e.g.
+        Valuations, ValuationMetrics.
+        """
+        label = filename[:filename.find("*")]
+        suffix = filename[(filename.find("*") + 1):]
+        valuation_files = [file for file in files if label in file]
+        datenums = [int(file.replace(label, '').replace(suffix, '')) for file in valuation_files]
+        latest_date = max(datenums)
+        return str(latest_date)
 
