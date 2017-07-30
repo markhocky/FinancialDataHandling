@@ -5,6 +5,12 @@ __pycache__/
 
 # Visual Studio files
 *.suo
+*.pyproj
+*.pyproj.user
+*.sln
+.vs/
+.vscode/
+
 
 # C extensions
 *.so
