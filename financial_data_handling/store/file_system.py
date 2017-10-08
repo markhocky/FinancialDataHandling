@@ -71,6 +71,9 @@ class Storage():
         file_path = os.path.join(folder, resource.filename())
         resource.save_to(file_path)
 
+    def exchange_information(self, resource):
+        return os.path.join(self.root, "Data")
+
     def stock_folder(self, resource):
         return os.path.join(self.data, resource.ticker)
 
