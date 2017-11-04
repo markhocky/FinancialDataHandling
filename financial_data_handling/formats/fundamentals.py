@@ -48,13 +48,13 @@ class Financials(StorageResource):
     def filename(self):
         return self.ticker + self.period + ".pkl"
  
-    def save_To(self, file_path):
+    def save_to(self, file_path):
         with open(file_path, "wb") as file:
             pickle.dump(self.to_dict(), file)
 
     def load_from(self, file_path):
         with open(file_path, "rb") as file:
-            dictionary = pickle.load(file)
+            dictionary = pandas.read_pickle(file)
         self.from_dict(dictionary)
         return self
 

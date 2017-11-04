@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d0a6c6ab-d4be-4b68-b0c3-f134c1a80f75</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>financial_data_handling\formats\information.py</StartupFile>
+    <StartupFile>financial_data_handling\TestScript.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>financial_data_handling</WorkingDirectory>

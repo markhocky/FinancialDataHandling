@@ -13,8 +13,10 @@ import pandas as pd
 from datetime import date
 from pandas import DataFrame
 
+from formats.price_history import Instruments
 
 
+DEFAULT_START_DATE = '2007-01-01'
 
 class Handler(object):
     '''
@@ -42,7 +44,7 @@ class Handler(object):
         
     def load(self, ticker, start = None, end = None):
         with open(self.build_path(ticker), "rb") as file:
-            instrument = pickle.load(file)
+            instrument = pd.read_pickle(file)
         return self.adjust(instrument[start:end])
 
     def adjust(self, instrument):
@@ -102,6 +104,15 @@ class Handler(object):
         for ticker in self.tickers:
             market[ticker] = self.load(ticker, self.start, self.end)
         return market
+
+    def load_instruments(self, tickers, start = DEFAULT_START_DATE, end = None):
+        price_data = {}
+        for ticker in tickers:
+            price_data[ticker] = self.load(ticker, start, end)
+        instruments = Instruments(self.exchange)
+        instruments.data = pd.Panel.from_dict(price_data)
+        return instruments
+
     
 
 class quandlAPI(Handler):
@@ -123,8 +134,6 @@ class quandlAPI(Handler):
         instrument_adj.columns = ["Open", "High", "Low", "Close", "Volume"]
         return instrument_adj
 
-    def load(self, ticker, start = None, end = None):
-        return super().load(ticker, start, end)
 
 
 class PriceDownloader():
@@ -133,7 +142,7 @@ class PriceDownloader():
 
         self.handler = handler
 
-    def download_and_save(self, tickers, start = "2005-01-01", end = None):
+    def download_and_save(self, tickers, start = DEFAULT_START_DATE, end = None):
         if end is None:
             end = date.today()
         count = 0

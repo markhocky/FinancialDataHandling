@@ -8,6 +8,10 @@ from pandas_datareader import data as pd_data
 from pandas_datareader import base as pd_base
 from bs4 import BeautifulSoup
 
+from formats.fundamentals import Financials
+from store.file_system import Storage
+from .prices import YahooDataDownloader
+
 
 def getNyseTickers():
     filename = "NYSEListedCompanies.xlsx"
@@ -16,6 +20,7 @@ def getNyseTickers():
     return nyse_table.Symbol[OK]
 
 
+# TODO Download handlers need to move into download.__init__.py or separate module.
 class WebDownloader():
     
     def __init__(self, exchange = "ASX"):
@@ -24,6 +29,7 @@ class WebDownloader():
         self.Yahoo = YahooDataDownloader()
 
     def saveFinancials(self, tickers):
+        # TODO savind financials should check that it is not overwriting data.
         scraper = WSJscraper()
         errors = {}
         count = 0
@@ -59,8 +65,14 @@ class WebDownloader():
         if tickers is None:
             tickers = self.all_tickers()
         
+        num_tickers = round(len(tickers) / 10.0, 0) * 10
+
         for ticker in tickers:
             
+            ticker_count = tickers.index(ticker)
+            if (ticker_count / num_tickers) % 0.1 == 0:
+                print("***", period.upper(), ": Downloading", ticker_count, "out of", len(tickers), "***")
+
             financials_template = Financials(ticker, period)
             try:
                 financials = self.store.load(financials_template)
@@ -69,144 +81,11 @@ class WebDownloader():
 
             try:
                 new_financials = self.WSJ.getFinancials(ticker, period)
-            except Exception as e:
-                print(e.message + " - problem with " + ticker)
-            else:
                 financials.merge(new_financials)
-                self.store.save(financials)
-
-    def migrateFinancials(self, ticker, period):
-
-        # This method should be only temporary
-        # assumes if data is up to date then will be from 2016
-
-        print(" ".join(["Updating",  ticker, period]))
-        current = self.store.load(Financials(ticker, period))
-        if (current.lastYear() == 2016) & (current.numColumns() > 5):
-            print("Data already up to date.")
-        elif (current.lastYear() == 2016):
-            print("Latest data already available, looking for legacy data")
-            legacy = self.createLegacyFinancials(ticker, period)
-            legacy.merge(current)
-            self.store.save(legacy)
-            print("Updated.")
-        else:
-            print("Downloading new data...")
-            try:
-                new_financials = self.WSJ.getFinancials(ticker, period)
             except Exception as e:
-                print(e.message + " - problem with " + ticker)
+                print(str(e) + " - problem with " + ticker)
             else:
-                current.merge(new_financials)
-                self.store.save(current)
-                print("Updated.")
-
-
-    def migrateAndUpdateAllFinancials(self, tickers = None):
-
-        if tickers is None:
-            tickers = self.all_tickers()
-
-        errors = []
-
-        for ticker in tickers:
-            for period in ["annual", "interim"]:
-                try:
-                    self.migrateFinancials(ticker, period)
-                except Exception as e:
-                    error_message = " - ".join([e.message, ticker, period])
-                    print(error_message)
-                    errors.append(error_message)
-            print("-" * 20)
-
-        return errors
-
-
-
-    def createLegacyFinancials(self, ticker, period):
-        
-        # This method should only be temporary until all stocks have 
-        # data stored as Financials objects.
-        financials = Financials(ticker, period)
-        
-        if period == "annual":
-            path = self.store.annualFinancials(financials)
-        elif period == "interim":
-            path = self.store.interimFinancials(financials)
-        else:
-            raise ValueError("period must be 'annual' or 'interim'")
-
-        financials_dict = {}
-        financials_dict["ticker"] = ticker
-        financials_dict["period"] = period
-        statements = {}
-
-        income_done = False
-        balance_done = False
-        cashflow_done = False
-
-        # Look for pandas pickle.
-        income_pickle = os.path.join(path, "income.pkl")
-        if os.path.exists(income_pickle):
-            statements["income"] = {}
-            with open(income_pickle, 'rb') as file:
-                statements["income"]["income"] = pickle.load(file)
-            income_done = True
-        
-        assets_pickle = os.path.join(path, "assets.pkl")
-        liab_pickle = os.path.join(path, "liabilities.pkl")
-        if os.path.exists(assets_pickle) & os.path.exists(liab_pickle):
-            statements["balance"] = {}
-            with open(assets_pickle, 'rb') as file:
-                statements["balance"]["assets"] = pickle.load(file)
-            with open(liab_pickle, 'rb') as file:
-                statements["balance"]["liabilities"] = pickle.load(file)
-            balance_done = True
-
-        operating_pickle = os.path.join(path, "operating.pkl")
-        financing_pickle = os.path.join(path, "financing.pkl")
-        investing_pickle = os.path.join(path, "investing.pkl")
-        if os.path.exists(operating_pickle) & os.path.exists(financing_pickle) & os.path.exists(investing_pickle):
-            statements["cashflow"] = {}
-            with open(operating_pickle, 'rb') as file:
-                statements["cashflow"]["operating"] = pickle.load(file)
-            with open(financing_pickle, 'rb') as file:
-                statements["cashflow"]["financing"] = pickle.load(file)
-            with open(investing_pickle, 'rb') as file:
-                statements["cashflow"]["investing"] = pickle.load(file)
-            cashflow_done = True
-
-        # If pandas pickle not loaded, look for html.
-        scraper = WSJscraper()
-        income_html = os.path.join(path, ticker + "income.html")
-        balance_html = os.path.join(path, ticker + "balance.html")
-        cashflow_html = os.path.join(path, ticker + "cashflow.html")
-        if (not income_done) & os.path.exists(income_html):
-            try:
-                with open(income_html, 'r') as file:
-                    page = file.read()
-                    statements["income"] = scraper.getTables("income", page)
-            except MissingStatementEntryError:
-                pass
-        if (not balance_done) & os.path.exists(balance_html):
-            try:
-                with open(balance_html, 'r') as file:
-                    page = file.read()
-                    statements["balance"] = scraper.getTables("balance", page)
-            except MissingStatementEntryError:
-                pass
-        if (not cashflow_done) & os.path.exists(cashflow_html):
-            try:
-                with open(cashflow_html, 'r') as file:
-                    page = file.read()
-                    statements["cashflow"] = scraper.getTables("cashflow", page)
-            except MissingStatementEntryError:
-                pass
-
-        financials_dict["statements"] = statements
-        financials.from_dict(financials_dict)
-        return financials
-
+                self.store.save(financials)
 
     def updatePriceHistory(self, tickers = None, start = None):
         if tickers is None:

@@ -40,13 +40,13 @@ class PriceHistory(StorageResource):
         self.ticker = ticker
         self.prices = None
 
-    def select_Folder(self, store):
-        return store.priceHistory(self)
+    def select_folder(self, store):
+        return store.price_history(self)
 
     def filename(self):
         return self.ticker + "prices.pkl"
 
-    def load_From(self, file_path):
+    def load_from(self, file_path):
         self.prices = pandas.read_pickle(file_path)
         return self
 
