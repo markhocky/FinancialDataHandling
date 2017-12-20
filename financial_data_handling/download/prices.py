@@ -90,20 +90,14 @@ class Handler(object):
                     possible_errors[start] = False
         return instrument
 
-    def download_market(self, tickers):
-        market = Market(tickers, self.start, self.end)
-        market.exchange = self.exchange
+    def download_intruments(self, tickers, start = DEFAULT_START_DATE, end = None):
+        price_data = {}
         for ticker in tickers:
             raw = self.get(ticker, self.start, self.end)
-            market[ticker] = self.adjust(raw)
-        return market
-
-    def load_market(self, tickers):
-        market = Market(tickers, self.start, self.end)
-        market.exchange = self.exchange
-        for ticker in self.tickers:
-            market[ticker] = self.load(ticker, self.start, self.end)
-        return market
+            price_data[ticker] = self.adjust(raw)
+        instruments = Instruments(self.exchange)
+        instruments.data = pd.Panel.from_dict(price_data)
+        return instruments
 
     def load_instruments(self, tickers, start = DEFAULT_START_DATE, end = None):
         price_data = {}

@@ -1,6 +1,6 @@
 
 import os
-os.chdir("C:\\Users\\Mark\\Source\\Repos\\FinancialDataHandling\\financial_data_handling")
+os.chdir("C:\\Users\\MarkHochguertel\\Source\\Repos\\FinancialDataHandling\\financial_data_handling")
 
 import pandas
 pandas.options.display.max_columns = 80
