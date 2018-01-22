@@ -4,7 +4,7 @@ Created on 6 Dec 2014
 @author: Mark
 '''
 
-import pandas_datareader
+import pandas_datareader as pd_data
 import pickle
 import quandl
 import os
@@ -178,6 +178,6 @@ class YahooDataDownloader():
 
     def currentPrice(self, ticker):
         ticker = ticker + ".AX"
-        quote = pd_data.get_quote_yahoo(ticker)
-        return quote["last"][ticker]
+        quote = self.priceHistory(ticker).iloc[-1]
+        return quote.Close
 
