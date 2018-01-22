@@ -6,8 +6,8 @@ from formats import StorageResource
 
 class Instruments(StorageResource):
 
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, exchange):
+        self.exchange = exchange
         self.data = None
         self.start = None
         self.end = None
@@ -17,7 +17,7 @@ class Instruments(StorageResource):
         return store.workspace(self)
 
     def filename(self):
-        return self.name.lower() + "_instruments.pkl"
+        return self.exchange.lower() + "_instruments.pkl"
 
     def load_from(self, file_path):
         self.data = pandas.read_pickle(file_path)
@@ -37,8 +37,7 @@ class Instruments(StorageResource):
         Removes the specified tickers from instrument set.
         '''
         tickers = list(set(self.tickers) - set(excluded_tickers))
-        new_set = Instruments(self.name)
-        new_set.exchange = self.exchange
+        new_set = Instruments(self.exchange)
         new_set.start = self.start
         new_set.end = self.end
         new_set.data = self.data.loc[tickers, :, :]
@@ -49,8 +48,7 @@ class Instruments(StorageResource):
         Removes tickers which are not in the provided ticker set
         '''
         tickers = list(set(included_tickers).intersection(set(self.tickers)))
-        new_set = Instruments(self.name)
-        new_set.exchange = self.exchange
+        new_set = Instruments(self.exchange)
         new_set.start = self.start
         new_set.end = self.end
         new_set.data = self.data.loc[tickers, :, :]
@@ -60,8 +58,7 @@ class Instruments(StorageResource):
         '''
         Returns a new instruments object with a revised (shorter) end date.
         '''
-        new_set = Instruments(self.name)
-        new_set.exchange = self.exchange
+        new_set = Instruments(self.exchange)
         new_set.start = self.start
         new_set.data = self.data.loc[:, :, :end_date]
         new_set.end = self.data.iloc[0].index.max().to_pydatetime().date()

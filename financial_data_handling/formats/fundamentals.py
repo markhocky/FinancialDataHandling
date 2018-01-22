@@ -140,7 +140,7 @@ class ValuationSummary(StorageResource):
         # Assumes date in YYYYMMDD format
         # If no date was provided then Storage will attempt to find the latest.
         self.date = date
-        self.summary = None
+        self.data = None
 
     def select_folder(self, store):
         return store.valuation_summary(self)
@@ -149,18 +149,47 @@ class ValuationSummary(StorageResource):
         return "ValuationSummary" + self.date + ".xlsx"
 
     def load_from(self, file_path):
-        self.summary = pandas.read_excel(file_path, index_col = 0)
+        self.data = pandas.read_excel(file_path, index_col = 0)
         return self
 
     def save_to(self, file_path):
-        self.summary.to_excel(file_path)
+        self.data.to_excel(file_path)
 
-class Valuations(ValuationSummary):
+
+class StackedValuations(ValuationSummary):
+    """
+    StackedValuations represents the tabular data with values for each ticker
+    stacked on top of each other. The table may contain multiple sub-types,
+    e.g. for Valuations may contain; Min, Max, Base..
+    This class also provides the method to convert back to a standard (pivoted)
+    dataframe with a column for each ticker.
+    """
+    
+    def __getitem__(self, key):
+        return self.data[self.data.ticker == key][self.data.columns[1:]]
+
+    @property
+    def types(self):
+        return self.data.columns[1:].tolist()
+
+    def as_wide_values(self, type = None, index = None):
+        if type is None or type not in self.types:
+            raise TypeError("A type is required. Select one of: {0}".format(", ".join(self.types)))
+        df = self.data.copy()
+        df['date'] = df.index
+        df = df.pivot(index = 'date', columns = 'ticker', values = type)
+        df = df.fillna(method = 'ffill')
+        if index is not None:
+            df = df.reindex(index, method = 'ffill')
+        return df
+
+
+class Valuations(StackedValuations):
 
     def filename(self):
         return "Valuations" + self.date + ".xlsx"
 
-class ValuationMetrics(ValuationSummary):
+class ValuationMetrics(StackedValuations):
 
     def filename(self):
         return "ValuationMetrics" + self.date + ".xlsx"

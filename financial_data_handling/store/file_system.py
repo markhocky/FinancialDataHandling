@@ -145,21 +145,11 @@ class Storage():
         self.check_directory(dest_file)
         shutil.move(os.path.join(old_folder, filename), dest_file)
 
-    def get_instruments(self, name, excluded_tickers = None):
-        market_sources = {
-            "ASX" : 'market', 
-            "NYSE" : 'nyse', 
-            "NYSE VALUE" : 'nyse_value'
-            }
-        exchange = name.upper().split()[0]
-        original_exchange = self.exchange
-        self.exchange = exchange
-        source = market_sources[name.upper()]
-        instruments = Instruments(source)
+    def get_instruments(self, excluded_tickers = None):
+        instruments = Instruments(self.exchange)
         instruments = self.load(instruments)
         if excluded_tickers is not None:
             instruments.exclude(excluded_tickers)
-        self.exchange = original_exchange
         return instruments
 
     def get_valuations(self, date = None):
