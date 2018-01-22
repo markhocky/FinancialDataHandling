@@ -5,7 +5,7 @@ from formats import StorageResource
 from store.db_wrapper import Company
 
 
-# TODO Data formates shouldn't be responsible for interpreting downloaded data (e.g. varying table columns).
+# TODO Data formats shouldn't be responsible for interpreting downloaded data (e.g. varying table columns).
 class ListedCompanies(StorageResource):
     
     def __init__(self, exchange):
