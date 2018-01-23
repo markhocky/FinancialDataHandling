@@ -134,11 +134,16 @@ class StatementWebpage(StorageResource):
             file.write(str(self.html))
 
 
-class ValuationSummary(StorageResource):
+class Valuations(StorageResource):
 
-    def __init__(self, date = "*"):
-        # Assumes date in YYYYMMDD format
-        # If no date was provided then Storage will attempt to find the latest.
+    def __init__(self, type, date = "*"):
+        """
+        Valuation Summary provides a wrapper for storing valuation data, e.g. EPV, or fundamentally derived figures
+        Inputs are:
+            * type - e.g. Summary
+            * date - assumed to be in YYYMMDD format, if no date is provided Storage will attempt to find the latest date.
+        """
+        self.type = type
         self.date = date
         self.data = None
 
@@ -146,7 +151,7 @@ class ValuationSummary(StorageResource):
         return store.valuation_summary(self)
 
     def filename(self):
-        return "ValuationSummary" + self.date + ".xlsx"
+        return "Valuation" + self.type + self.date + ".xlsx"
 
     def load_from(self, file_path):
         self.data = pandas.read_excel(file_path, index_col = 0)
@@ -156,7 +161,7 @@ class ValuationSummary(StorageResource):
         self.data.to_excel(file_path)
 
 
-class StackedValuations(ValuationSummary):
+class StackedValuations(Valuations):
     """
     StackedValuations represents the tabular data with values for each ticker
     stacked on top of each other. The table may contain multiple sub-types,
@@ -184,22 +189,11 @@ class StackedValuations(ValuationSummary):
         return df
 
 
-class Valuations(StackedValuations):
-
-    def filename(self):
-        return "Valuations" + self.date + ".xlsx"
-
-class ValuationMetrics(StackedValuations):
-
-    def filename(self):
-        return "ValuationMetrics" + self.date + ".xlsx"
-
-
 class AnalysisSummary(StorageResource):
 
     def __init__(self, reporter):
         self.ticker = reporter.ticker
-        self.summary = reporter.summary_table()
+        self.data = reporter.summary_table()
         self.reporter = reporter
 
     def select_folder(self, store):
@@ -210,7 +204,7 @@ class AnalysisSummary(StorageResource):
 
     def save_to(self, file_path):
         writer = pandas.ExcelWriter(file_path)
-        self.summary.to_excel(writer, "Summary")
+        self.data.to_excel(writer, "Summary")
         self.reporter.financials_to_excel(writer)
         writer.save()
 
@@ -219,7 +213,7 @@ class CMChistoricals(StorageResource):
 
     def __init__(self, ticker):
         self.ticker = ticker
-        self.summary = None
+        self.data = None
 
     def select_folder(self, store):
         return store.CMCsummary(self)
@@ -228,10 +222,10 @@ class CMChistoricals(StorageResource):
         return self.ticker + "historical.pkl"
 
     def save_to(self, file_path):
-        self.summary.to_pickle(file_path)
+        self.data.to_pickle(file_path)
 
     def load_from(self, file_path):
-        self.summary = pandas.read_pickle(file_path)
+        self.data = pandas.read_pickle(file_path)
         return self
 
 
@@ -239,7 +233,7 @@ class CMCpershare(StorageResource):
 
     def __init__(self, ticker):
         self.ticker = ticker
-        self.summary = None
+        self.data = None
 
     def select_folder(self, store):
         return store.CMCsummary(self)
@@ -248,9 +242,9 @@ class CMCpershare(StorageResource):
         return self.ticker + "pershare.pkl"
 
     def save_to(self, file_path):
-        return self.summary.to_pickle(file_path)
+        return self.data.to_pickle(file_path)
 
     def load_from(self, file_path):
-        self.summary = pandas.read_pickle(file_path)
+        self.data = pandas.read_pickle(file_path)
         return self
 

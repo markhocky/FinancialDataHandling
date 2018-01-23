@@ -13,12 +13,6 @@ from store.file_system import Storage
 from .prices import YahooDataDownloader
 
 
-def getNyseTickers():
-    filename = "NYSEListedCompanies.xlsx"
-    nyse_table = pandas.read_excel(os.path.join(r'D:\Investing\Data', filename))
-    OK = (nyse_table.FalseTicker == "-") & (nyse_table.PriceErrors == "-") & (nyse_table.StatementsAvailable == "-")
-    return nyse_table.Symbol[OK]
-
 
 # TODO Download handlers need to move into download.__init__.py or separate module.
 class WebDownloader():

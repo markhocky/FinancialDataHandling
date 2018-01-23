@@ -36,6 +36,15 @@ class ListedCompanies(StorageResource):
     def tickers(self):
         return self.table.index.tolist()
 
+    @property
+    def OK_tickers(self):
+        if self.exchange == "NYSE":
+            table = self.table[(self.table.StatementsAvailable == "-") & (self.table.FalseTicker == "-") & (self.table.PriceErrors == "-")]
+        else:
+            # This criteria is for ASX listed companies.
+            table = self.table[~pandas.isnull(self.table["Shares Outstanding"]) & ~pandas.isnull(self.table["Market Cap"]) & ~pandas.isnull(self.table["Public Float"])]
+        return table.index
+
     def select_folder(self, store):
         return store.exchange_information(self)
 

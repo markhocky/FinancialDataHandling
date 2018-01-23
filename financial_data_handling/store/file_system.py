@@ -10,37 +10,8 @@ from pandas_datareader import base as pd_base
 from bs4 import BeautifulSoup
 
 from formats.price_history import Instruments
-from formats.fundamentals import Valuations, ValuationMetrics
+from formats.fundamentals import Valuations, StackedValuations
 
-class XLSio():
-
-    def __init__(self, store):
-        self.store = store
-
-    # NOTE: This is currently working on the assumption that the workbook only
-    # contains one worksheet.
-    # Takes inputs from ASX Listed Companies downloaded from ASX.com.au
-    def load_workbook(self, name):
-        if name is "ASXListedCompanies.xlsx":
-            header = 2
-        else:
-            header = 0
-        table = pandas.read_excel(os.path.join(self.store.data, name), header = header)
-        table.index = table.pop("ASX code")
-        self.table = table
-
-    def get_header(self):
-        return self.table.columns.tolist()
-
-    def get_tickers(self):
-        return self.table.index.tolist()
-
-    def update_table(self, new_data):
-        new_table = pandas.DataFrame.from_dict(new_data, orient = "index")
-        self.table = self.table.join(new_table)
-
-    def save_as(self, filename):
-        self.table.to_excel(os.path.join(self.store.data, filename), sheet_name = "Stock table")
 
 
 class Storage():
@@ -108,38 +79,6 @@ class Storage():
         all_files = os.listdir(root_dir)
         return [filename for filename in all_files if search_term in filename]
 
-    def migrate_all(self, folder_pattern, type, tickers = None, file_pattern = None):
-
-        if tickers is None:
-            xls = XLSio(self)
-            xls.load_workbook("StockSummary")
-            xls.table = xls.table[xls.table["P/E Ratio (TTM)"].notnull()]
-            tickers = xls.get_tickers()
-
-        for ticker in tickers:
-            folder = folder_pattern.replace("<ticker>", ticker)
-            if os.path.exists(folder):
-                self.migrate(folder, type, ticker, file_pattern)
-
-    def migrate(self, old_folder, type, ticker, file_pattern = None):
-
-        destination = self.get_folder(ticker, type)
-
-        if file_pattern is not None:
-            wanted = lambda name: os.path.isfile(os.path.join(old_folder, name)) and file_pattern in name
-            move_files = [file for file in os.listdir(old_folder) if wanted(file)]
-            for file in move_files:
-                self.migrate_file(old_folder, destination, file)
-        else:
-            destination_parent = os.path.dirname(destination)
-            old_folder_name = os.path.basename(old_folder)
-            destination_folder_name = os.path.basename(destination)
-            if os.path.dirname(old_folder) != destination_parent:
-                self.check_directory(destination)
-                shutil.move(old_folder, destination_parent)
-            if old_folder_name != destination_folder_name:
-                os.rename(os.path.join(destination_parent, old_folder_name), destination)
-
     def migrate_file(self, old_folder, destination, filename):
         dest_file = os.path.join(destination, filename)
         self.check_directory(dest_file)
@@ -152,22 +91,13 @@ class Storage():
             instruments.exclude(excluded_tickers)
         return instruments
 
-    def get_valuations(self, date = None):
+    def get_valuations(self, type, date = None):
         if date is None:
             # Find the most recent valuations
             files = os.listdir(self.valuations)
-            filename = Valuations().filename()
+            filename = StackedValuations(type).filename()
             date = self.find_latest_date(files, filename)
-        valuations = Valuations(date)
-        return self.load(valuations)
-
-    def get_valuemetrics(self, date = None):
-        if date is None:
-            # Find the most recent valuations
-            files = os.listdir(self.valuations)
-            filename = ValuationMetrics().filename()
-            date = self.find_latest_date(files, filename)
-        valuations = ValuationMetrics(date)
+        valuations = StackedValuations(type, date)
         return self.load(valuations)
 
     def find_latest_date(self, files, filename):
