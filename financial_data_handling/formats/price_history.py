@@ -65,6 +65,24 @@ class Instruments(StorageResource):
         return new_set
 
 
+class Indice(StorageResource):
+
+    def __init__(self, ticker):
+        self.ticker = ticker
+        self.data = None
+
+    def select_folder(self, store):
+        return store.indice_folder(self)
+
+    def filename(self):
+        return self.ticker + ".pkl"
+
+    def load_from(self, file_path):
+        self.data = pandas.read_pickle(file_path)
+
+    def save_to(self, file_path):
+        self.data.to_pickle(file_path)
+
 # TODO - provide methods for updating the data (i.e. for removing errors).
 # TODO - consider adding a merge method for price history to append new data rather than overwrite.
 class PriceHistory(StorageResource):

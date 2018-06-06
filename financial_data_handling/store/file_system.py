@@ -9,7 +9,7 @@ from pandas_datareader import data as pd_data
 from pandas_datareader import base as pd_base
 from bs4 import BeautifulSoup
 
-from formats.price_history import Instruments
+from formats.price_history import Instruments, Indice
 from formats.fundamentals import Valuations, StackedValuations
 
 
@@ -44,6 +44,9 @@ class Storage():
 
     def exchange_information(self, resource):
         return os.path.join(self.root, "Data")
+
+    def indice_folder(self, resource):
+        return os.path.join(self.root, "Data", "Indices")
 
     def stock_folder(self, resource):
         return os.path.join(self.data, resource.ticker)
@@ -99,6 +102,10 @@ class Storage():
             date = self.find_latest_date(files, filename)
         valuations = StackedValuations(type, date)
         return self.load(valuations)
+
+    def get_indice(self, ticker):
+        indice = Indice(ticker)
+        return self.load(indice)
 
     def find_latest_date(self, files, filename):
         """
